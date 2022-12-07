@@ -1,0 +1,55 @@
+library(neuralnet)
+library(data.table)
+set.seed(500)
+econData<-read.csv("your file extension here/fredgraph.csv")
+#find data here,download csv, remove empty cells ahead of time https://fred.stlouisfed.org/graph/?graph_id=1132210
+dates<-econData[,1]
+Dlen<-round((length(econData[,1]))/2)
+econData<-econData[,2:4]
+
+d1<-dates[1:Dlen]
+d2<-dates[Dlen:(length(econData[,1]))]
+
+maxs <- apply(econData, 2, max)
+mins <- apply(econData, 2, min)
+scaled <- as.data.frame(scale(econData,
+                              center = mins,
+                              scale = maxs - mins))
+train_ <- scaled[1:Dlen, ]
+test_ <- scaled[Dlen:length(econData[,1]), ]
+n<-neuralnet(DFF ~ CPIAUCSL_PC1-UNRATE, 
+             data = train_, 
+             hidden = c(400,100,50, 20, 10,3,2), 
+             linear.output = F, 
+             lifesign = 'minimal',
+             rep = 1, )
+
+
+
+
+
+
+pred1<-predict(n, test_)
+time <- seq.Date(as.Date("1988-8-1"), by = "month", length.out = length(pred1))
+tail(pred1)
+tail(train_)
+d2<-d2[1:length(pred1)]
+plot(time, pred1, ylim = c(0,1), ylab = "Normalized Fed Funds Rate", type = "l", main = "Nueral Net Prediction of Fed Funds Rate with Unemployment and Inflation Inputs")
+lines(time, test_[1:length(time),1], col = "blue")
+legend(x="topright", legend = c("Prediction", "Real Data"), lty = c(1, 1), col = c("black", "blue"))
+
+summary(lm(pred1 ~ test_[1:length(time),1]))
+
+
+
+
+pred1<-predict(n, train_)
+time <- seq.Date(as.Date("1954-7-1"), by = "month", length.out = length(pred1))
+tail(pred1)
+tail(train_)
+d2<-d2[1:length(pred1)]
+plot(time, pred1, ylim = c(0,1), ylab = "Normalized Fed Funds Rate", type = "l", main = "Nueral Net Prediction of Fed Funds Rate with Unemployment and Inflation Inputs")
+lines(time, train_[1:length(time),1], col = "blue")
+legend(x="topright", legend = c("Prediction", "Real Data"), lty = c(1, 1), col = c("black", "blue"))
+
+summary(lm(pred1 ~ train_[1:length(time),1]))
